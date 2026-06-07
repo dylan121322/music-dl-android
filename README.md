@@ -7,7 +7,7 @@
 
 | 平台 | 下载 |
 |------|------|
-| Android APK | [app-debug.apk](https://github.com/dylan121322/music-dl/releases/tag/v1.4.2) |
+| Android APK | [app-debug.apk](https://github.com/dylan121322/music-dl-android/releases/tag/v1.5.1) |
 | macOS (Apple Silicon) | [MusicDL-macOS-arm64.zip](https://github.com/dylan121322/music-dl/releases/latest) |
 | Windows (x64) | [MusicDL-Windows-x64.zip](https://github.com/dylan121322/music-dl/releases/latest) |
 
@@ -77,7 +77,7 @@ cd android
 ### 桌面端独立窗口（可选）
 
 ```bash
-python webview_launcher.py    # 内置 WebView 窗口，无需打开浏览器
+python launcher.py             # 内置 WebView 窗口，无需打开浏览器
 ```
 
 ## 快速开始
@@ -161,46 +161,58 @@ python main.py config --dir ~/Music
 ## 项目结构
 
 ```
-music-dl/
-├── server.py           # FastAPI 后端 + REST API（Web 入口）
-├── launcher.py         # 桌面窗口启动器（PyInstaller 构建用）
-├── logger.py           # 统一日志引擎（RotatingFileHandler, 5MB×3）
-├── exporter.py         # 日志导出（JSON/TXT/日期筛选）
-├── link_extractor.py   # 链接音频提取（规则 + AI 两级）
-├── static/             # Web 前端（原生 HTML/CSS/JS，零依赖）
-│   ├── index.html      # 单页应用（多平台搜索 + 下载 + 播放）
-│   └── style.css       # 暗色主题
-├── android/            # Android App（Chaquopy Python-in-Android）
-│   └── app/src/main/java/com/musicdl/MainActivity.java  # 原生 Java UI
-├── tests/              # 测试套件（pytest + httpx）
-│   ├── conftest.py     # 测试 fixtures
-│   ├── test_api.py     # API 端点测试
-│   ├── test_utils.py   # 工具函数测试
-│   ├── test_logger.py  # 日志引擎测试
-│   └── test_exporter.py# 导出模块测试
-├── pyproject.toml      # Pytest 配置
-├── .github/workflows/  # CI 自动构建（macOS + Windows）
-├── main.py             # CLI 入口
-├── api.py              # QQ 音乐 API + CDP HTML 歌单提取
-├── downloader.py       # 多线程下载引擎 + 3层回退
-├── models.py           # Song 数据模型
-├── utils.py            # 工具函数、Cookie 解析、g_tk 计算、AI 配置
-├── cdp_cookies.py      # Chrome CDP Cookie 提取（含 HttpOnly）
-├── login.py            # 二维码登录（QQ）
-├── browser_login.py    # 浏览器 Cookie 读取 + Chrome Keychain 解密
-├── requirements.txt
-└── sources/            # 多音源系统
-    ├── __init__.py     # 音源注册中心 + 回退逻辑
-    ├── base.py         # MusicSource 抽象基类
-    ├── netease.py      # 网易云音乐
-    ├── kugou.py        # 酷狗音乐
-    ├── github.py       # GitHub 音源
-    ├── lx_adapter.py   # LX Music JS 音源适配器
-    ├── template.py     # JSON 模板音源（零代码添加新源）
-    ├── discovery.py    # 网页爬取 + 自动发现
-    ├── ai_discovery.py # AI 发现引擎（搜索→访问→分析→注册）
-    └── configs/        # 自动保存发现的音源模板 JSON
+music-dl-android/
+├── server.py               # FastAPI App 组装 (69行)
+├── server_models.py        # Pydantic 请求/响应模型 + Android专有FavoritesRequest
+├── server_state.py         # 状态管理: get_api(Lock), lifespan(TTL清理)
+├── server_routes_config.py # 配置端点 (5个)
+├── server_routes_search.py # 多平台并行搜索+去重
+├── server_routes_download.py # 下载/播放/进度SSE (6端点)
+├── server_routes_auth.py   # CDP登录/源管理/日志 (10端点)
+├── server_routes_android.py # 🔒 Android 专有: stream代理/cache/favorites/debug
+├── android/                # Android App（Chaquopy Python-in-Android）
+│   ├── app/
+│   │   ├── build.gradle    # 构建配置 (versionCode 6, versionName 1.5.1)
+│   │   └── src/main/
+│   │       ├── java/com/musicdl/MainActivity.java  # 原生 Java UI
+│   │       ├── python/server_runner.py             # Python 进程管理
+│   │       └── res/                                # Material You 主题
+│   ├── build_apk.sh        # macOS/Linux 构建脚本
+│   └── build_full.ps1      # Windows 构建脚本
+├── tests/                  # 测试套件（pytest + httpx）
+│   ├── conftest.py         # 测试 fixtures
+│   ├── test_api.py         # API 端点测试
+│   ├── test_utils.py       # 工具函数测试
+│   ├── test_logger.py      # 日志引擎测试
+│   └── test_exporter.py    # 导出模块测试
+├── main.py                 # CLI 入口
+├── api.py                  # QQ 音乐 API + CDP HTML 歌单提取
+├── downloader.py           # 多线程下载引擎 + 3层回退
+├── models.py               # Song 数据模型
+├── utils.py                # 工具函数、Cookie 解析、g_tk 计算
+├── cdp_cookies.py          # Chrome CDP Cookie 提取（含 HttpOnly）
+└── sources/                # 多音源系统
 ```
+
+## 双仓架构
+
+本仓库为 Android 专版，与[主线仓库](https://github.com/dylan121322/music-dl)共享核心代码，采用选择性同步。
+
+| 仓库 | 版本 | 说明 |
+|------|------|------|
+| [music-dl](https://github.com/dylan121322/music-dl) (主线) | v1.4.5 | 桌面端 Web GUI + CLI |
+| [music-dl-android](https://github.com/dylan121322/music-dl-android) (专版) | v1.5.1 | Android App + CDN代理/缓存 |
+
+**同步策略：** 绝不 merge，用 `git checkout upstream/main -- <files>` 选择性同步。
+
+**Android 专有模块 (`server_routes_android.py`):**
+
+| 端点 | 功能 | 安全措施 |
+|------|------|----------|
+| `/api/stream?url=` | CDN音频URL代理 | 域名白名单, 无Cookie转发 |
+| `/api/cache?url=` | CDN音频缓存 | 域名白名单 + Content-Type音频校验 |
+| `/api/favorites` | QQ音乐收藏 | 401未登录拦截 |
+| `/debug/play` | 音频格式调试 | — |
 
 ## 下载回退链路
 
@@ -282,7 +294,7 @@ curl -X POST http://127.0.0.1:8765/api/logs/export \
 
 ```bash
 pip install pytest pytest-asyncio httpx
-pytest tests/ -v    # 65 tests
+pytest tests/ -v    # 65 tests (API / 工具函数 / 日志 / 导出 / 链接提取)
 ```
 
 ## 依赖
